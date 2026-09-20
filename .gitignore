@@ -1,0 +1,27 @@
+# Security & Secret Keys (절대 커밋 금지)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Node.js / Frontend
+node_modules/
+.next/
+out/
+build/
+npm-debug.log*
+
+# Python / Backend
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
+env/
+
+# OS / IDE Files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
