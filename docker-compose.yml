@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  # 1. 백엔드 서비스 (FastAPI)
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: oss_backend
+    restart: always
+    expose:
+      - "8000"  # 외부 노출 없이 컨테이너 내부 8000 포트만 활성화
+    env_file:
+      - .env    # 루트 경로의 .env 파일 자동 로드 (OpenAI Key 등)
+
+  # 2. 프론트엔드 서비스 (Next.js) - 메인 외부 서비스
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: oss_frontend
+    restart: always
+    ports:
+      - "3101:3101"  # a1 팀 할당 포트 3101 번 연결
+    environment:
+      - PORT=3101
+      - BACKEND_URL=http://backend:8000  # Docker 내부 네트워크 통해 백엔드와 통신
+    depends_on:
+      - backend
