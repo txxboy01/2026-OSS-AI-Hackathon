@@ -1,0 +1,33 @@
+[project]
+name = "rpm-backend"
+version = "1.0.0"
+description = "Evidence-grounded message action extraction API"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+  "fastapi==0.141.1", "uvicorn==0.53.0", "pydantic==2.13.5",
+  "pydantic-settings==2.15.0", "google-genai==2.25.0",
+  "httpx==0.28.1", "PyYAML==6.0.3",
+]
+
+[dependency-groups]
+dev = [
+  "pytest==9.1.1", "pytest-asyncio==1.4.0", "pytest-cov==7.1.0",
+  "jsonschema==4.26.0", "openapi-spec-validator==0.9.0", "ruff==0.16.8",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+addopts = "-ra --strict-markers"
+markers = ["live: optional real Gemini evaluation (requires explicit invocation)"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py312"
+
+[tool.coverage.run]
+source = ["app"]
+omit = ["app/__main__.py", "app/logging_config.py"]
+
+[tool.coverage.report]
+show_missing = true
