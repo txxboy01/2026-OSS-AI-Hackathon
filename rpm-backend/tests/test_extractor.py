@@ -56,6 +56,8 @@ async def test_actual_sdk_request_is_stateless_and_once(monkeypatch):
         assert "systemInstruction" in body and original not in json.dumps(
             body["systemInstruction"], ensure_ascii=False
         )
+        policy = body["systemInstruction"]["parts"][0]["text"]
+        assert all(term in policy for term in ("사기", "확정하지 않는다", "위험도", "권고"))
         assert body["generationConfig"]["responseMimeType"] == "application/json"
         assert body["generationConfig"]["candidateCount"] == 1
         assert not body.get("tools")
