@@ -1,4 +1,5 @@
 import json
+from types import SimpleNamespace
 
 import httpx
 import pytest
@@ -6,7 +7,8 @@ import pytest
 from app import extractor as extractor_module
 from app.config import Settings
 from app.errors import ExtractionFailure
-from app.extractor import GeminiExtractor
+from app.extractor import ExtractionEnvelope, GeminiExtractor
+from scripts import evaluate_live
 
 
 def create_with_transport(monkeypatch, handler):
@@ -58,8 +60,11 @@ async def test_actual_sdk_request_is_stateless_and_once(monkeypatch):
         )
         policy = body["systemInstruction"]["parts"][0]["text"]
         assert all(term in policy for term in ("사기", "확정하지 않는다", "위험도", "권고"))
+        assert "메타 지시 자체는 행동 요구로 취급하지 않되" in policy
+        assert "같은 메시지의 실제 사용자 행동 요구는 빠짐없이 추출한다" in policy
         assert body["generationConfig"]["responseMimeType"] == "application/json"
         assert body["generationConfig"]["candidateCount"] == 1
+        assert "temperature" not in body["generationConfig"]
         assert not body.get("tools")
         assert options["http_options"].retry_options.attempts == 1
         assert options["http_options"].timeout == 12000 and options["vertexai"] is False
@@ -139,3 +144,45 @@ async def test_transport_timeout(monkeypatch):
         assert len(calls) == 1
     finally:
         await extractor.aclose()
+
+
+async def test_live_evaluation_output_contains_only_safe_diagnostics(monkeypatch, capsys):
+    quotes = []
+
+    class FakeExtractor:
+        def __init__(self, _settings):
+            self.calls = 0
+
+        async def extract(self, message):
+            self.calls += 1
+            if self.calls == 1:
+                quote = message[:12]
+                quotes.append(quote)
+                return ExtractionEnvelope(
+                    "completed", json.dumps({"evidence": [{"type": "ACT_LINK", "quote": quote}]})
+                )
+            if self.calls == 2:
+                raise ExtractionFailure("AI_TIMEOUT")
+            return ExtractionEnvelope("completed", '{"evidence":[]}')
+
+        async def aclose(self):
+            pass
+
+    monkeypatch.setattr(evaluate_live, "Settings", lambda: SimpleNamespace(log_level="INFO"))
+    monkeypatch.setattr(evaluate_live, "configure_logging", lambda _level: None)
+    monkeypatch.setattr(evaluate_live, "GeminiExtractor", FakeExtractor)
+    assert await evaluate_live.evaluate() == 1
+
+    lines = [json.loads(line) for line in capsys.readouterr().out.splitlines()]
+    assert len(lines) == 14  # 13 synthetic runs and one summary.
+    assert lines[0]["actualTypes"] == ["ACT_LINK"]
+    assert lines[0]["quoteValidation"] == "passed"
+    assert lines[1]["actualTypes"] == []
+    assert lines[1]["quoteValidation"] == "failed"
+    assert lines[1]["reasonCode"] == "AI_TIMEOUT"
+    assert lines[2]["quoteValidation"] == "not_applicable"
+    serialized = json.dumps(lines, ensure_ascii=False)
+    assert quotes[0] not in serialized
+    assert "messageText" not in serialized and "quote" not in serialized.lower().replace(
+        "quotevalidation", ""
+    )
