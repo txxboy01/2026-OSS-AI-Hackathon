@@ -1,0 +1,27 @@
+[Unit]
+Description=RPM message analysis backend
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=rpm
+Group=rpm
+WorkingDirectory=/opt/rpm-backend
+# Read /opt/rpm-backend/.env using pydantic-settings; do not duplicate shell parsing.
+ExecStart=/opt/rpm-backend/.venv/bin/python -m app --host 127.0.0.1 --port 8000 --trusted-proxies 127.0.0.1,::1
+Restart=on-failure
+RestartSec=3
+TimeoutStopSec=20
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+LimitCORE=0
+UMask=0077
+Environment=PYTHONDONTWRITEBYTECODE=1
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

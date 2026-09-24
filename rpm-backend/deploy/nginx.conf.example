@@ -1,0 +1,37 @@
+# Include the following zones in the nginx http {} context.
+limit_req_zone $binary_remote_addr zone=rpm_ingress:10m rate=10r/s;
+limit_conn_zone $binary_remote_addr zone=rpm_connections:10m;
+
+server {
+    listen 443 ssl;
+    server_name rpm.example.invalid;
+    ssl_certificate /etc/ssl/rpm/fullchain.pem;
+    ssl_certificate_key /etc/ssl/rpm/privkey.pem;
+
+    # Do not record client IP, arbitrary query strings or request payloads.
+    access_log off;
+    error_log /dev/null crit;
+    client_max_body_size 32k;
+    client_body_buffer_size 32k;
+    client_body_timeout 10s;
+    limit_req zone=rpm_ingress burst=20 nodelay;
+    limit_req_status 429;
+    limit_conn rpm_connections 20;
+
+    location / {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_http_version 1.1;
+        proxy_request_buffering off;
+        proxy_buffering off;
+        proxy_max_temp_file_size 0;
+        proxy_connect_timeout 5s;
+        proxy_read_timeout 20s;
+        proxy_send_timeout 20s;
+        proxy_set_header Host $host;
+        # Replace, rather than append, the user-supplied forwarding header.
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Connection "";
+        add_header Cache-Control "no-store" always;
+    }
+}
