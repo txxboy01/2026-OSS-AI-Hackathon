@@ -55,6 +55,7 @@ export default function Home() {
   const [message, setMessage] = useState(samples.suncheon.text);
   const [analyzed, setAnalyzed] = useState(false);
   const [action, setAction] = useState<ActionKey | null>(null);
+  const [modal, setModal] = useState<"about" | "privacy" | null>(null);
   const active = samples[sample];
   const currentEvidence = useMemo(() => active.evidence, [active]);
 
@@ -70,8 +71,8 @@ export default function Home() {
       <header className="header shell">
         <a className="brand" href="#top"><span>R</span> RPM</a>
         <nav>
-          <a href="#how">서비스 소개</a>
-          <a href="#principles">개인정보 원칙</a>
+          <button className="navText" onClick={() => setModal("about")}>서비스 소개</button>
+          <button className="navText" onClick={() => setModal("privacy")}>개인정보 원칙</button>
           <a className="navCta" href="#analyze">메시지 분석 시작 <b>→</b></a>
         </nav>
       </header>
@@ -128,7 +129,7 @@ export default function Home() {
             )}
           </section>
 
-          <section className="trust" id="principles">
+          <section className="trust">
             <article><span>↗</span><h3>원문 근거 확인</h3><p>AI가 인용한 문장을 분석 원문에서 직접 확인합니다.</p></article>
             <article><span>✓</span><h3>근거 없는 결과 차단</h3><p>원문에 없는 인용이나 금지 표현이 있으면 결과를 표시하지 않습니다.</p></article>
             <article><span>⌁</span><h3>입력·결과 미저장</h3><p>현재 탭의 분석만 처리하며 새로고침하면 결과가 제거됩니다.</p></article>
@@ -136,8 +137,24 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="how" id="how"><div className="shell howGrid"><div><p className="eyebrow inverse">HOW RPM WORKS</p><h2>판정이 아니라,<br />멈추고 확인할 근거를 보여줍니다.</h2><p>RPM은 실제 피싱이나 계정 침해를 확정하지 않습니다. 메시지가 요구하는 행동과 원문 근거를 보여주고, 사용자가 안전한 다음 행동을 선택하도록 돕습니다.</p></div><div className="steps"><Step number="1" title="메시지 입력" text="안전 샘플 또는 비식별 처리한 메시지를 분석합니다." /><Step number="2" title="원문 근거 확인" text="로그인·송금·앱 설치·긴급성 요구를 원문과 비교합니다." /><Step number="3" title="상황별 대응" text="링크 열람·정보 입력 여부에 맞는 다음 행동을 확인합니다." /></div></div></section>
       <footer className="shell">RPM · 근거 검증형 AI 피싱 메시지 분석·대응 서비스</footer>
+
+      {modal && <div className="modalBackdrop" role="presentation" onClick={() => setModal(null)}>
+        <section className="modal" role="dialog" aria-modal="true" aria-label={modal === "about" ? "서비스 소개" : "개인정보 원칙"} onClick={(event) => event.stopPropagation()}>
+          <button className="close" aria-label="닫기" onClick={() => setModal(null)}>×</button>
+          {modal === "about" ? <>
+            <p className="eyebrow">HOW RPM WORKS</p>
+            <h2>판정이 아니라,<br />멈추고 확인할 근거를 보여줍니다.</h2>
+            <p className="modalLead">RPM은 실제 피싱이나 계정 침해를 확정하지 않습니다. 메시지가 요구하는 행동과 원문 근거를 보여주고, 사용자가 안전한 다음 행동을 선택하도록 돕습니다.</p>
+            <div className="modalSteps"><Step number="1" title="메시지 입력" text="안전 샘플 또는 비식별 처리한 메시지를 분석합니다." /><Step number="2" title="원문 근거 확인" text="로그인·송금·앱 설치·긴급성 요구를 원문과 비교합니다." /><Step number="3" title="상황별 대응" text="링크 열람·정보 입력 여부에 맞는 다음 행동을 확인합니다." /></div>
+          </> : <>
+            <p className="eyebrow">PRIVACY BY DESIGN</p>
+            <h2>입력은 최소화하고,<br />분석 결과는 저장하지 않습니다.</h2>
+            <p className="modalLead">실제 메시지를 분석할 때도 비밀번호, 인증번호, 계좌번호 등 민감정보를 지운 본문만 입력해야 합니다.</p>
+            <ul className="privacyList"><li>비밀번호·인증번호·계좌번호·주민번호는 입력하지 않습니다.</li><li>입력 메시지와 분석 결과를 브라우저 저장소에 보관하지 않습니다.</li><li>새로고침하거나 탭을 닫으면 현재 분석 결과가 사라집니다.</li><li>AI API 키는 프론트엔드에 노출하지 않고 백엔드에서 관리합니다.</li></ul>
+          </>}
+        </section>
+      </div>}
     </main>
   );
 }
