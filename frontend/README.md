@@ -1,36 +1,59 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# RPM 프론트엔드
 
-## Getting Started
+RPM(근거 검증형 AI 피싱 메시지 분석·대응 서비스)의 사용자 화면입니다.
 
-First, run the development server:
+의심 문자·메일에서 사용자가 하도록 요구받는 행동을 원문 인용과 함께 보여 주고, 사용자가 현재 상황에 맞는 안전한 다음 행동을 선택하도록 돕습니다. RPM은 피싱·사기·침해 여부를 확정하지 않습니다.
+
+## 제공 화면
+
+- 안전한 시연 샘플 선택 또는 비식별 메시지 입력
+- AI 분석 결과: 행동 요구와 원문 인용문 표시
+- 원문 근거 검증 실패 시 분석 결과를 표시하지 않는 구조
+- 링크 열람·정보 입력·앱 설치 여부에 따른 대응 안내
+- 검증된 정적 공식 경로 안내
+
+## 기술 스택
+
+- Next.js (App Router)
+- TypeScript
+- Tailwind CSS
+
+## 로컬 실행
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+브라우저에서 [http://localhost:3000](http://localhost:3000)을 엽니다.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 백엔드 연동
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+프론트엔드는 FastAPI 백엔드의 API와 연결됩니다.
 
-## Learn More
+```text
+POST /analyze
+의심 메시지 + 외부 AI 전송 동의
+→ 검증된 행동 요구와 원문 인용 결과
 
-To learn more about Next.js, take a look at the following resources:
+POST /guidance
+사용자 행동 상태
+→ 상황별 대응 안내
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Gemini API 키는 프론트엔드에 저장하거나 노출하지 않습니다. AI 호출과 원문 인용 검증은 백엔드에서 처리합니다.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## 개인정보 원칙
 
-## Deploy on Vercel
+- 비밀번호, 인증번호, 계좌번호, 주민번호는 입력하지 않습니다.
+- 입력 메시지와 분석 결과를 브라우저 저장소에 저장하지 않습니다.
+- 피싱 또는 실제 침해 여부를 확정하지 않습니다.
+- 공식 경로는 팀이 검증한 정적 목록에 한해서만 안내합니다.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## 개발 명령
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+npm run dev      # 개발 서버 실행
+npm run build    # 배포 빌드 확인
+npm run lint     # 코드 검사
+```
