@@ -41,11 +41,20 @@ async def evaluate():
                         "caseId": case["id"],
                         "run": run + 1,
                         "passed": passed,
+                        "actualTypes": sorted(types),
+                        "quoteValidation": "passed" if evidence else "not_applicable",
                         "missingTypes": sorted(required - types),
                         "unexpectedTypes": sorted(types - allowed),
                     }
                 except ExtractionFailure as error:
-                    row = {"caseId": case["id"], "run": run + 1, "passed": False, "reasonCode": error.reason}
+                    row = {
+                        "caseId": case["id"],
+                        "run": run + 1,
+                        "passed": False,
+                        "actualTypes": [],
+                        "quoteValidation": "failed",
+                        "reasonCode": error.reason,
+                    }
                 results.append(row)
                 print(json.dumps(row, ensure_ascii=False))
     finally:

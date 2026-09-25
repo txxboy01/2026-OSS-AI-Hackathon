@@ -2,7 +2,7 @@
   "date": "2026-09-24",
   "python": "3.12.14",
   "automatedTests": {
-    "tests": 204,
+    "tests": 205,
     "failures": 0,
     "errors": 0,
     "skipped": 0
@@ -51,7 +51,68 @@
     "body_and_key_absent_from_logs": true,
     "external_ai_calls": 0
   },
-  "realGeminiCalls": 0,
+  "realGeminiCalls": 27,
+  "realGeminiEvaluation": {
+    "model": "gemini-3.5-flash-lite",
+    "purpose": "End-to-end behavior extraction and source-quote validation on a fixed synthetic evaluation set; not a model comparison or general accuracy measurement.",
+    "initialBatch": {
+      "calls": 13,
+      "passed": 12,
+      "failed": 1,
+      "failure": "INJECTION missed ACT_LOGIN"
+    },
+    "diagnosticCalls": 1,
+    "promptClarified": true,
+    "finalBatch": {
+      "calls": 13,
+      "passed": 13,
+      "failed": 0,
+      "cases": [
+        {
+          "sample": "SAMPLE_APP",
+          "runs": 3,
+          "actualTypes": ["ACT_APP", "ACT_LINK", "PRESSURE"],
+          "quoteValidation": "passed"
+        },
+        {
+          "sample": "SAMPLE_LOGIN",
+          "runs": 3,
+          "actualTypes": ["ACT_LINK", "ACT_LOGIN", "PRESSURE"],
+          "quoteValidation": "passed"
+        },
+        {
+          "sample": "SAMPLE_REFUND",
+          "runs": 3,
+          "actualTypes": ["ACT_LINK", "ACT_PERSONAL", "PRESSURE"],
+          "quoteValidation": "passed"
+        },
+        {
+          "sample": "PAYMENT",
+          "runs": 1,
+          "actualTypes": ["ACT_PAYMENT"],
+          "quoteValidation": "passed"
+        },
+        {
+          "sample": "NOTICE",
+          "runs": 1,
+          "actualTypes": [],
+          "quoteValidation": "not_applicable"
+        },
+        {
+          "sample": "NEGATION",
+          "runs": 1,
+          "actualTypes": [],
+          "quoteValidation": "not_applicable"
+        },
+        {
+          "sample": "INJECTION",
+          "runs": 1,
+          "actualTypes": ["ACT_LINK", "ACT_LOGIN"],
+          "quoteValidation": "passed"
+        }
+      ]
+    }
+  },
   "dockerBuildRun": false,
   "productionDeploymentRun": false
 }
