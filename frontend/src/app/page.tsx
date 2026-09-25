@@ -55,6 +55,7 @@ export default function Home() {
   const [message, setMessage] = useState(samples.suncheon.text);
   const [analyzed, setAnalyzed] = useState(false);
   const [action, setAction] = useState<ActionKey | null>(null);
+  const [showGuide, setShowGuide] = useState(false);
   const [modal, setModal] = useState<"about" | "privacy" | null>(null);
   const active = samples[sample];
   const currentEvidence = useMemo(() => active.evidence, [active]);
@@ -64,12 +65,13 @@ export default function Home() {
     setMessage(samples[key].text);
     setAnalyzed(false);
     setAction(null);
+    setShowGuide(false);
   }
 
   return (
     <main>
       <header className="header shell">
-        <a className="brand" href="#top"><span>R</span> RPM</a>
+        <a className="brand" href="#top"><span>R</span><div><strong>RPM</strong><small>AI 피싱 메시지 분석·대응</small></div></a>
         <nav>
           <button className="navText" onClick={() => setModal("about")}>서비스 소개</button>
           <button className="navText" onClick={() => setModal("privacy")}>개인정보 원칙</button>
@@ -79,9 +81,8 @@ export default function Home() {
 
       <section className="hero" id="top">
         <div className="shell">
-          <p className="eyebrow"><i /> 근거 검증형 AI 분석</p>
           <h1>의심 메시지,<br />누르기 전에 확인하세요.</h1>
-          <p className="subhead">AI가 메시지에서 사용자에게 요구하는 행동을 원문 근거와 함께 보여주고,<br className="desktopOnly" /> 원문에 없는 분석 결과는 차단합니다.</p>
+          <p className="subhead">의심 메시지가 요구하는 행동을 원문 근거와 함께 확인하세요.</p>
 
           <section className="analyzer" id="analyze">
             {!analyzed ? (
@@ -97,7 +98,7 @@ export default function Home() {
                 <label htmlFor="message">의심 메시지</label>
                 <textarea id="message" value={message} onChange={(e) => setMessage(e.target.value)} />
                 <div className="privacy"><b>입력 전 확인</b><span>비밀번호, 인증번호, 계좌번호, 주민번호, 이메일 주소, 전화번호는 입력하지 마세요.</span></div>
-                <button className="primary" onClick={() => { setAnalyzed(true); setAction(null); }}>원문 근거 분석하기 <b>→</b></button>
+                <button className="primary" onClick={() => { setAnalyzed(true); setAction(null); setShowGuide(false); }}>원문 근거 분석하기 <b>→</b></button>
               </>
             ) : (
               <>
@@ -106,25 +107,24 @@ export default function Home() {
                   <span className="limit">피싱 확정 아님</span>
                 </div>
                 <div className="evidenceGrid">
-                  {currentEvidence.map(([label, quote, description, tone]) => (
+                  {currentEvidence.map(([label, quote, , tone]) => (
                     <article className="evidence" key={`${label}-${quote}`}>
                       <span className={tone === "amber" ? "tag amber" : "tag"}>{label}</span>
                       <blockquote>“{message.includes(quote) ? quote : "원문 인용 검증 실패"}”</blockquote>
-                      <p>{description}</p>
                     </article>
                   ))}
                 </div>
                 <div className="privacy"><b>분석의 한계</b><span>이 결과만으로 피싱 또는 실제 침해 여부를 확정할 수 없습니다.</span></div>
-                <div className="buttons"><button className="primary" onClick={() => document.getElementById("response")?.scrollIntoView({ behavior: "smooth", block: "nearest" })}>내 상황에 맞는 대응 보기 <b>→</b></button><button className="secondary" onClick={() => { setAnalyzed(false); setAction(null); }}>메시지 다시 입력</button></div>
+                <div className="buttons"><button className="primary" onClick={() => setShowGuide(true)}>내 상황에 맞는 대응 보기 <b>→</b></button><button className="secondary" onClick={() => { setAnalyzed(false); setAction(null); setShowGuide(false); }}>메시지 다시 입력</button></div>
 
-                <section className="response" id="response">
+                {showGuide && <section className="response" id="response">
                   <h3>지금 어디까지 진행했나요?</h3>
                   <p>현재 행동을 고르면, 이 메시지에서 멈추기 위한 다음 순서를 바로 보여드립니다.</p>
                   <div className="actions">
                     {(["none", "link", "info", "app"] as ActionKey[]).map((key) => <button key={key} className={action === key ? "active" : ""} onClick={() => setAction(key)}>{{ none: "아직 누르지 않았어요", link: "링크만 열었어요", info: "인증번호·정보를 입력했어요", app: "앱을 설치했어요" }[key]}</button>)}
                   </div>
                   {action && <div className="plan"><b>{plans[action].title}</b><ol>{plans[action].steps.map((step) => <li key={step}>{step}</li>)}</ol>{sample === "suncheon" && <a className="primary official" href={samples.suncheon.official} target="_blank" rel="noreferrer">순천시 공식 홈페이지 열기 ↗</a>}<small>RPM은 이 메시지가 피싱이라고 확정하지 않습니다. 메시지에 나온 행동을 멈추고 공식 경로에서 확인하도록 돕습니다.</small></div>}
-                </section>
+                </section>}
               </>
             )}
           </section>
