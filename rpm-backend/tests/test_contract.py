@@ -11,7 +11,7 @@ from referencing.jsonschema import DRAFT202012
 
 from app.extractor import ExtractionEnvelope
 
-CONTRACT = yaml.safe_load((Path(__file__).parent.parent / "docs/openapi-v1.yaml").read_text())
+CONTRACT = yaml.safe_load((Path(__file__).parent.parent / "docs/openapi-v1.yaml").read_text(encoding="utf-8"))
 REGISTRY = Registry().with_resource("urn:rpm-contract", Resource(CONTRACT, DRAFT202012))
 
 
