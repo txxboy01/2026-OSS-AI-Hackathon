@@ -8,17 +8,46 @@ Gemini 호출만 가짜 추출기로 대체하므로 API 키와 비용이 필요
 
 ## 실행
 
-```bash
-# 저장소 루트에서, 백엔드 개발 의존성 설치 후
-pip install -r rpm-backend/requirements-dev.txt
-python -m pytest qa/integration -q
+Python **3.12**가 필요합니다. 저장소 루트에서 전용 가상환경을 만들고,
+설치와 테스트에 같은 Python 실행 파일을 사용합니다. 시스템 Python의 패키지에
+의존하면 `google-genai` 누락이나 FastAPI·pydantic-settings 버전 불일치로
+테스트 수집 단계부터 실패할 수 있습니다.
+
+### Windows PowerShell
+
+```powershell
+py -3.12 -m venv rpm-backend/.venv
+.\rpm-backend\.venv\Scripts\python.exe -m pip install --require-hashes -r rpm-backend/requirements-dev.txt
+.\rpm-backend\.venv\Scripts\python.exe -m pytest qa/integration -q -ra
+
+# 백엔드 회귀 테스트
+Push-Location rpm-backend
+try {
+    .\.venv\Scripts\python.exe -m pytest -q -ra
+} finally {
+    Pop-Location
+}
 ```
+
+### macOS / Linux
+
+```bash
+python3.12 -m venv rpm-backend/.venv
+rpm-backend/.venv/bin/python -m pip install --require-hashes -r rpm-backend/requirements-dev.txt
+rpm-backend/.venv/bin/python -m pytest qa/integration -q -ra
+
+# 백엔드 회귀 테스트
+(cd rpm-backend && .venv/bin/python -m pytest -q -ra)
+```
+
+의존성 버전과 해시는 `rpm-backend/requirements-dev.txt`를 따릅니다.
+가상환경은 Git에서 제외되며 커밋하지 않습니다.
 
 - 현재 브랜치의 `page.tsx`에 API 연동 코드가 없으면 FE 관련 테스트는 skip 됩니다.
 - 다른 브랜치의 FE로 검증하려면:
   ```bash
   git show origin/feature/fe-api-integration:frontend/src/app/page.tsx > /tmp/page.tsx
-  RPM_FE_PAGE=/tmp/page.tsx python -m pytest qa/integration -q
+  RPM_FE_PAGE=/tmp/page.tsx rpm-backend/.venv/bin/python -m pytest qa/integration -q
   ```
 - 배포 도메인의 CORS를 검증하려면 `RPM_FE_ORIGINS=https://a1.scnuoss.net`처럼 지정합니다.
 
