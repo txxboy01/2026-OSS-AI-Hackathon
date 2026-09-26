@@ -20,7 +20,7 @@ async def evaluate():
     settings = Settings()
     configure_logging(settings.log_level)
     cases = json.loads(
-        (Path(__file__).resolve().parent.parent / "tests/fixtures/gold_cases.json").read_text()
+        (Path(__file__).resolve().parent.parent / "tests/fixtures/gold_cases.json").read_text(encoding="utf-8")
     )
     extractor = GeminiExtractor(settings)
     results = []
