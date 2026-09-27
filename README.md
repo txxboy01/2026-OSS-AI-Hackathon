@@ -88,6 +88,7 @@ API 주소는 빌드할 때 코드에 들어가므로, 바꾸면 다시 빌드�
 * 예전 화면이 보이면 브라우저 캐시 때문입니다. `Ctrl+Shift+R`로 새로고침하세요.
 
 ## 6. 프로젝트 문서
+* [시스템 아키텍처 및 API 명세서](docs/architecture.md)
 * [백엔드 명세서](rpm-backend/docs/backend-spec-v1.0.md)
 * [백엔드 QA 리포트](rpm-backend/docs/QA_REPORT.md)
 * [팀 협업 프로세스](docs/collaboration.md)
