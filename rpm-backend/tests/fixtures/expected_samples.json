@@ -1,0 +1,62 @@
+[
+  {
+    "id": "SAMPLE_APP",
+    "requiredTypes": [
+      "ACT_APP",
+      "PRESSURE"
+    ],
+    "optionalTypes": [
+      "ACT_LINK"
+    ],
+    "evidence": [
+      {
+        "type": "PRESSURE",
+        "quote": "오늘 안에 배송 정보를 확인하지 않으면 주문이 취소될 수 있습니다."
+      },
+      {
+        "type": "ACT_APP",
+        "quote": "배송 확인 앱을 설치해 주세요."
+      }
+    ]
+  },
+  {
+    "id": "SAMPLE_LOGIN",
+    "requiredTypes": [
+      "ACT_LOGIN",
+      "PRESSURE"
+    ],
+    "optionalTypes": [
+      "ACT_LINK"
+    ],
+    "evidence": [
+      {
+        "type": "PRESSURE",
+        "quote": "오늘 안에 계정을 확인하지 않으면 이용이 제한됩니다."
+      },
+      {
+        "type": "ACT_LOGIN",
+        "quote": "아래 링크에서 로그인해 주세요."
+      }
+    ]
+  },
+  {
+    "id": "SAMPLE_REFUND",
+    "requiredTypes": [
+      "ACT_PERSONAL",
+      "PRESSURE"
+    ],
+    "optionalTypes": [
+      "ACT_LINK"
+    ],
+    "evidence": [
+      {
+        "type": "PRESSURE",
+        "quote": "지금 바로 계좌를 등록하지 않으면 환급이 취소됩니다."
+      },
+      {
+        "type": "ACT_PERSONAL",
+        "quote": "계좌번호를 입력해 주세요."
+      }
+    ]
+  }
+]

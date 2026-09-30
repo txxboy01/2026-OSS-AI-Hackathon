@@ -1,0 +1,836 @@
+openapi: 3.1.0
+info:
+  title: RPM Backend API
+  version: 1.0.0
+  description: RPM 백엔드 개발 명세서 v1.0의 제안 계약. 무인증·무상태 MVP. 본 YAML은 구현 결과가 아닌 목표 계약이다. JSON 예시는 가상 비식별 데이터다. cross-field
+    규칙·PII 검사는 명세서와 서버 검증을 따른다.
+servers:
+- url: /
+  description: 호출하는 백엔드 API origin 기준
+security: []
+tags:
+- name: System
+- name: Analysis
+- name: Guidance
+paths:
+  /health:
+    get:
+      operationId: getHealth
+      tags:
+      - System
+      summary: 프로세스 생존 확인
+      description: Gemini를 호출하지 않으며 외부 AI 정상 여부를 보장하지 않는다.
+      responses:
+        '200':
+          description: 프로세스 실행 중
+          headers:
+            Cache-Control: &id001
+              description: 모든 응답에 no-store
+              schema:
+                type: string
+                const: no-store
+            X-Request-ID: &id002
+              description: 서버 생성 UUID v4. 본문 requestId가 있는 경우 동일
+              schema:
+                type: string
+                format: uuid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+              examples:
+                HealthResponse:
+                  value:
+                    status: ok
+                    service: rpm-backend
+                    apiVersion: '1.0'
+        '500':
+          description: INTERNAL_ERROR. 예기치 못한 서버 결함. 본문·상세 예외 미반환.
+          headers:
+            Cache-Control: *id001
+            X-Request-ID: *id002
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        default:
+          description: 앱에서 처리한 기타 오류. 404/405 포함. 프록시 장애·네트워크 오류는 이 형식을 보장하지 않는다.
+          headers:
+            Cache-Control: *id001
+            X-Request-ID: *id002
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /analyze:
+    post:
+      operationId: analyzeMessage
+      tags:
+      - Analysis
+      summary: 메시지 행동 요구 추출 및 인용 검증
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AnalyzeRequest'
+            example:
+              messageText: 오늘 안에 계정을 확인하지 않으면 이용이 제한됩니다. 아래 링크에서 로그인하세요.
+              consentToExternalAi: true
+      responses:
+        '200':
+          description: 검증 성공·추출 없음·안전한 fallback 모두 200. status와 mode로 분기.
+          headers:
+            Cache-Control: *id001
+            X-Request-ID: *id002
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalyzeResponse'
+              examples:
+                VerifiedResponse:
+                  value:
+                    requestId: 00000000-0000-4000-8000-000000000001
+                    apiVersion: '1.0'
+                    offsetUnit: utf16
+                    limitation: 이 결과만으로 피싱 또는 실제 침해 여부를 확정할 수 없습니다.
+                    mode: ai
+                    status: VERIFIED
+                    evidence:
+                    - id: e1
+                      type: PRESSURE
+                      label: 긴급성·불이익 강조
+                      quote: 오늘 안에 계정을 확인하지 않으면 이용이 제한됩니다.
+                      spans:
+                      - start: 0
+                        end: 29
+                    - id: e2
+                      type: ACT_LOGIN
+                      label: 로그인 요구
+                      quote: 아래 링크에서 로그인하세요.
+                      spans:
+                      - start: 30
+                        end: 45
+                    reasonCode: null
+                    notice: 원문에서 확인된 행동 요구입니다. 인용 일치는 의미 해석의 정확성을 보장하지 않습니다.
+                NoActionResponse:
+                  value:
+                    requestId: 00000000-0000-4000-8000-000000000001
+                    apiVersion: '1.0'
+                    offsetUnit: utf16
+                    limitation: 이 결과만으로 피싱 또는 실제 침해 여부를 확정할 수 없습니다.
+                    mode: ai
+                    status: NO_ACTION_FOUND
+                    evidence: []
+                    reasonCode: null
+                    notice: 추출된 행동 요구가 없습니다. 이 결과가 메시지의 안전성을 의미하지는 않습니다.
+                FallbackResponse:
+                  value:
+                    requestId: 00000000-0000-4000-8000-000000000001
+                    apiVersion: '1.0'
+                    offsetUnit: utf16
+                    limitation: 이 결과만으로 피싱 또는 실제 침해 여부를 확정할 수 없습니다.
+                    mode: fallback
+                    status: FALLBACK
+                    evidence: []
+                    reasonCode: EVIDENCE_INVALID
+                    notice: 자동 분석 결과를 원문 근거로 검증하지 못했거나 분석을 완료하지 못했습니다. 메시지 속 링크를 누르거나 정보를 입력하지 말고, 주장하는 서비스의 공식
+                      앱 또는 직접 입력한 주소에서 확인하세요.
+        '400':
+          description: INVALID_JSON, CONSENT_REQUIRED, INPUT_POLICY_VIOLATION, SENSITIVE_DATA_DETECTED. 분석 및 Gemini
+            호출 없음.
+          headers:
+            Cache-Control: *id001
+            X-Request-ID: *id002
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                ErrorResponse:
+                  value:
+                    requestId: 00000000-0000-4000-8000-000000000001
+                    apiVersion: '1.0'
+                    error:
+                      code: SENSITIVE_DATA_DETECTED
+                      message: 민감정보로 의심되는 값이 있습니다. 값을 삭제한 뒤 다시 시도해 주세요.
+                      fields:
+                      - messageText
+                      detectedTypes:
+                      - PHONE
+        '413':
+          description: PAYLOAD_TOO_LARGE. 디코딩 전 본문 32768바이트 초과.
+          headers:
+            Cache-Control: *id001
+            X-Request-ID: *id002
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '415':
+          description: UNSUPPORTED_MEDIA_TYPE. application/json 및 UTF-8 외 또는 요청 압축 미지원.
+          headers:
+            Cache-Control: *id001
+            X-Request-ID: *id002
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: INVALID_REQUEST. 누락, 타입·길이·추가 필드·행동 조합 오류.
+          headers:
+            Cache-Control: *id001
+            X-Request-ID: *id002
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: RATE_LIMITED. 서비스 요청 제한. Retry-After 제공. Gemini 호출 없음.
+          headers:
+            Cache-Control: *id001
+            X-Request-ID: *id002
+            Retry-After:
+              description: 재요청 대기 초. 클라이언트 자동 재시도는 금지.
+              schema:
+                type: integer
+                minimum: 1
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: SERVICE_BUSY. 동시 요청 한도 초과. Retry-After 제공. Gemini 호출 없음.
+          headers:
+            Cache-Control: *id001
+            X-Request-ID: *id002
+            Retry-After:
+              description: 재요청 대기 초. 클라이언트 자동 재시도는 금지.
+              schema:
+                type: integer
+                minimum: 1
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: INTERNAL_ERROR. 예기치 못한 서버 결함. 본문·상세 예외 미반환.
+          headers:
+            Cache-Control: *id001
+            X-Request-ID: *id002
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        default:
+          description: 앱에서 처리한 기타 오류. 404/405 포함. 프록시 장애·네트워크 오류는 이 형식을 보장하지 않는다.
+          headers:
+            Cache-Control: *id001
+            X-Request-ID: *id002
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /guidance:
+    post:
+      operationId: getGuidance
+      tags:
+      - Guidance
+      summary: 사용자가 실제로 한 행동에 대한 고정 대응 안내
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GuidanceRequest'
+            example:
+              actions:
+              - OPENED_LINK
+              - SUBMITTED_CREDENTIALS
+      responses:
+        '200':
+          description: AI 호출 없이 고정 정책 매핑 반환.
+          headers:
+            Cache-Control: *id001
+            X-Request-ID: *id002
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GuidanceResponse'
+              examples:
+                GuidanceResponse:
+                  value:
+                    requestId: 00000000-0000-4000-8000-000000000001
+                    apiVersion: '1.0'
+                    guidanceVersion: '1.0'
+                    actions:
+                    - OPENED_LINK
+                    - SUBMITTED_CREDENTIALS
+                    urgency: prompt
+                    steps:
+                    - code: G_STOP
+                      priority: 30
+                      title: 추가 행동 중단
+                      body: 메시지의 링크 접속, 정보 입력, 송금·결제, 앱 설치를 더 진행하지 마세요.
+                    - code: G_CLOSE
+                      priority: 40
+                      title: 열린 페이지 닫기
+                      body: 메시지를 통해 연 페이지를 닫고 파일 다운로드나 알림·권한 허용을 진행하지 마세요.
+                    - code: G_PASSWORD
+                      priority: 50
+                      title: 계정 보호
+                      body: 신뢰할 수 있는 기기에서 공식 앱 또는 직접 입력한 주소로 접속해 입력한 비밀번호를 변경하고, 같은 비밀번호를 쓰는 다른 계정도 확인하세요.
+                    - code: G_SESSIONS
+                      priority: 60
+                      title: 로그인 상태 확인
+                      body: 공식 계정 설정에서 최근 로그인과 연결 기기를 확인하고, 모르는 세션을 종료한 뒤 지원되는 추가 인증을 설정하세요.
+                    - code: G_VERIFY
+                      priority: 80
+                      title: 공식 경로로 확인
+                      body: 메시지 안의 주소·연락처 대신, 평소 사용하던 공식 앱 또는 직접 확인한 주소·대표 연락처에서 사실을 확인하세요.
+                    notice: 선택한 행동에 따른 일반 대응 안내입니다. 실제 피해 여부를 의미하지 않습니다.
+                    limitation: 이 결과만으로 피싱 또는 실제 침해 여부를 확정할 수 없습니다.
+        '400':
+          description: INVALID_JSON. JSON 문법·인코딩·중복 키 오류.
+          headers:
+            Cache-Control: *id001
+            X-Request-ID: *id002
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '413':
+          description: PAYLOAD_TOO_LARGE. 디코딩 전 본문 32768바이트 초과.
+          headers:
+            Cache-Control: *id001
+            X-Request-ID: *id002
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '415':
+          description: UNSUPPORTED_MEDIA_TYPE. application/json 및 UTF-8 외 또는 요청 압축 미지원.
+          headers:
+            Cache-Control: *id001
+            X-Request-ID: *id002
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: INVALID_REQUEST. 누락, 타입·길이·추가 필드·행동 조합 오류.
+          headers:
+            Cache-Control: *id001
+            X-Request-ID: *id002
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: RATE_LIMITED. 서비스 요청 제한. Retry-After 제공. Gemini 호출 없음.
+          headers:
+            Cache-Control: *id001
+            X-Request-ID: *id002
+            Retry-After:
+              description: 재요청 대기 초. 클라이언트 자동 재시도는 금지.
+              schema:
+                type: integer
+                minimum: 1
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: INTERNAL_ERROR. 예기치 못한 서버 결함. 본문·상세 예외 미반환.
+          headers:
+            Cache-Control: *id001
+            X-Request-ID: *id002
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        default:
+          description: 앱에서 처리한 기타 오류. 404/405 포함. 프록시 장애·네트워크 오류는 이 형식을 보장하지 않는다.
+          headers:
+            Cache-Control: *id001
+            X-Request-ID: *id002
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+components:
+  schemas:
+    ActionType:
+      type: string
+      enum:
+      - ACT_LOGIN
+      - ACT_PAYMENT
+      - ACT_APP
+      - ACT_LINK
+      - ACT_PERSONAL
+      - PRESSURE
+    UserAction:
+      type: string
+      enum:
+      - NOT_INTERACTED
+      - OPENED_LINK
+      - SUBMITTED_CREDENTIALS
+      - SUBMITTED_PERSONAL
+      - SENT_MONEY
+      - INSTALLED_APP
+      - UNKNOWN
+    FallbackReason:
+      type: string
+      enum:
+      - AI_TIMEOUT
+      - AI_UNAVAILABLE
+      - AI_BLOCKED
+      - AI_OUTPUT_INVALID
+      - EVIDENCE_INVALID
+    SensitiveType:
+      type: string
+      enum:
+      - PASSWORD
+      - OTP
+      - PHONE
+      - EMAIL
+      - ACCOUNT
+      - RRN
+      - CARD
+    AnalyzeRequest:
+      type: object
+      additionalProperties: false
+      required:
+      - messageText
+      - consentToExternalAi
+      properties:
+        messageText:
+          type: string
+          minLength: 1
+          maxLength: 5000
+          description: Unicode 코드 포인트 1~5000개. 원문 불변. 공백뿐인 입력, 고립 서로게이트, TAB/LF/CR 이외 C0 및 DEL 제어문자는 거부. JSON 전체
+            32768바이트 제한.
+        consentToExternalAi:
+          type: boolean
+          description: 필수 실제 JSON boolean. false는 400 CONSENT_REQUIRED; 문자열 및 숫자 불허.
+    Span:
+      type: object
+      additionalProperties: false
+      required:
+      - start
+      - end
+      properties:
+        start:
+          type: integer
+          minimum: 0
+          maximum: 9999
+        end:
+          type: integer
+          minimum: 1
+          maximum: 10000
+      description: UTF-16 코드 유닛, 0부터 시작, end 제외. start < end이며 요청 스냅샷 messageText.slice(start,end) == quote.
+    RawEvidence:
+      type: object
+      additionalProperties: false
+      required:
+      - type
+      - quote
+      properties:
+        type:
+          $ref: '#/components/schemas/ActionType'
+        quote:
+          type: string
+          minLength: 1
+          maxLength: 500
+          description: 원문의 연속된 부분 문자열. 공백만 있는 값 거부. 변형·보정 없음.
+    RawExtraction:
+      type: object
+      additionalProperties: false
+      required:
+      - evidence
+      properties:
+        evidence:
+          type: array
+          items:
+            $ref: '#/components/schemas/RawEvidence'
+          minItems: 0
+          maxItems: 12
+      description: Gemini 내부 출력 전용. 클라이언트 API 요청·응답이 아님. 모든 필드 엄격 검증.
+    Evidence:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - type
+      - label
+      - quote
+      - spans
+      properties:
+        id:
+          type: string
+          pattern: ^e([1-9]|1[0-2])$
+        type:
+          $ref: '#/components/schemas/ActionType'
+        label:
+          type: string
+          enum:
+          - 로그인 요구
+          - 송금·결제 요구
+          - 앱 설치 요구
+          - 링크 접속 요구
+          - 개인정보·금융정보 입력 요구
+          - 긴급성·불이익 강조
+        quote:
+          type: string
+          minLength: 1
+          maxLength: 500
+        spans:
+          type: array
+          items:
+            $ref: '#/components/schemas/Span'
+          minItems: 1
+          uniqueItems: true
+          maxItems: 20
+      description: label은 type별 서버 고정 매핑. id는 정렬 후 e1부터 연속. 각 인용문의 모든 일치 위치를 반환하며 20회 초과는 EVIDENCE_INVALID.
+    GuidanceRequest:
+      type: object
+      additionalProperties: false
+      required:
+      - actions
+      properties:
+        actions:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserAction'
+          minItems: 1
+          uniqueItems: true
+          maxItems: 7
+      description: NOT_INTERACTED 또는 UNKNOWN은 단독으로만 허용. 빈 배열·중복·미등록 값·다른 필드 거부. 분석 이력 불필요.
+    GuidanceStep:
+      type: object
+      additionalProperties: false
+      required:
+      - code
+      - priority
+      - title
+      - body
+      properties:
+        code:
+          type: string
+          enum:
+          - G_DEVICE
+          - G_BANK
+          - G_STOP
+          - G_CLOSE
+          - G_PASSWORD
+          - G_SESSIONS
+          - G_PRIVACY
+          - G_VERIFY
+          - G_HELP
+        priority:
+          type: integer
+          enum:
+          - 10
+          - 20
+          - 30
+          - 40
+          - 50
+          - 60
+          - 70
+          - 80
+          - 90
+        title:
+          type: string
+          minLength: 1
+          maxLength: 80
+        body:
+          type: string
+          minLength: 1
+          maxLength: 500
+    GuidanceResponse:
+      type: object
+      additionalProperties: false
+      required:
+      - requestId
+      - apiVersion
+      - guidanceVersion
+      - actions
+      - urgency
+      - steps
+      - notice
+      - limitation
+      properties:
+        requestId:
+          type: string
+          format: uuid
+        apiVersion:
+          type: string
+          const: '1.0'
+        guidanceVersion:
+          type: string
+          const: '1.0'
+        actions:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserAction'
+          minItems: 1
+          uniqueItems: true
+          maxItems: 7
+        urgency:
+          type: string
+          enum:
+          - routine
+          - prompt
+          - urgent
+        steps:
+          type: array
+          items:
+            $ref: '#/components/schemas/GuidanceStep'
+          minItems: 2
+          maxItems: 9
+        notice:
+          type: string
+          const: 선택한 행동에 따른 일반 대응 안내입니다. 실제 피해 여부를 의미하지 않습니다.
+        limitation:
+          type: string
+          const: 이 결과만으로 피싱 또는 실제 침해 여부를 확정할 수 없습니다.
+    HealthResponse:
+      type: object
+      additionalProperties: false
+      required:
+      - status
+      - service
+      - apiVersion
+      properties:
+        status:
+          type: string
+          const: ok
+        service:
+          type: string
+          const: rpm-backend
+        apiVersion:
+          type: string
+          const: '1.0'
+    ErrorDetail:
+      type: object
+      additionalProperties: false
+      required:
+      - code
+      - message
+      - fields
+      - detectedTypes
+      properties:
+        code:
+          type: string
+          enum:
+          - INVALID_JSON
+          - INVALID_REQUEST
+          - CONSENT_REQUIRED
+          - INPUT_POLICY_VIOLATION
+          - SENSITIVE_DATA_DETECTED
+          - PAYLOAD_TOO_LARGE
+          - UNSUPPORTED_MEDIA_TYPE
+          - RATE_LIMITED
+          - SERVICE_BUSY
+          - INTERNAL_ERROR
+          - NOT_FOUND
+          - METHOD_NOT_ALLOWED
+        message:
+          type: string
+          minLength: 1
+          maxLength: 300
+        fields:
+          type: array
+          items:
+            type: string
+            enum:
+            - messageText
+            - consentToExternalAi
+            - actions
+          minItems: 0
+          uniqueItems: true
+          maxItems: 3
+        detectedTypes:
+          type: array
+          items:
+            $ref: '#/components/schemas/SensitiveType'
+          minItems: 0
+          uniqueItems: true
+          maxItems: 7
+      description: 민감정보, 원문, AI 출력, 입력값, 동적 추가 필드명을 포함하지 않는다. 미해당 배열은 [].
+    ErrorResponse:
+      type: object
+      additionalProperties: false
+      required:
+      - requestId
+      - apiVersion
+      - error
+      properties:
+        requestId:
+          type: string
+          format: uuid
+        apiVersion:
+          type: string
+          const: '1.0'
+        error:
+          $ref: '#/components/schemas/ErrorDetail'
+    VerifiedResponse:
+      type: object
+      additionalProperties: false
+      required:
+      - requestId
+      - apiVersion
+      - mode
+      - status
+      - evidence
+      - reasonCode
+      - notice
+      - limitation
+      - offsetUnit
+      properties:
+        requestId:
+          type: string
+          format: uuid
+        apiVersion:
+          type: string
+          const: '1.0'
+        mode:
+          type: string
+          const: ai
+        status:
+          type: string
+          const: VERIFIED
+        evidence:
+          type: array
+          items:
+            $ref: '#/components/schemas/Evidence'
+          minItems: 1
+          maxItems: 12
+        reasonCode:
+          type: 'null'
+        notice:
+          type: string
+          const: 원문에서 확인된 행동 요구입니다. 인용 일치는 의미 해석의 정확성을 보장하지 않습니다.
+        limitation:
+          type: string
+          const: 이 결과만으로 피싱 또는 실제 침해 여부를 확정할 수 없습니다.
+        offsetUnit:
+          type: string
+          const: utf16
+    NoActionResponse:
+      type: object
+      additionalProperties: false
+      required:
+      - requestId
+      - apiVersion
+      - mode
+      - status
+      - evidence
+      - reasonCode
+      - notice
+      - limitation
+      - offsetUnit
+      properties:
+        requestId:
+          type: string
+          format: uuid
+        apiVersion:
+          type: string
+          const: '1.0'
+        mode:
+          type: string
+          const: ai
+        status:
+          type: string
+          const: NO_ACTION_FOUND
+        evidence:
+          type: array
+          items:
+            $ref: '#/components/schemas/Evidence'
+          minItems: 0
+          maxItems: 0
+        reasonCode:
+          type: 'null'
+        notice:
+          type: string
+          const: 추출된 행동 요구가 없습니다. 이 결과가 메시지의 안전성을 의미하지는 않습니다.
+        limitation:
+          type: string
+          const: 이 결과만으로 피싱 또는 실제 침해 여부를 확정할 수 없습니다.
+        offsetUnit:
+          type: string
+          const: utf16
+    FallbackResponse:
+      type: object
+      additionalProperties: false
+      required:
+      - requestId
+      - apiVersion
+      - mode
+      - status
+      - evidence
+      - reasonCode
+      - notice
+      - limitation
+      - offsetUnit
+      properties:
+        requestId:
+          type: string
+          format: uuid
+        apiVersion:
+          type: string
+          const: '1.0'
+        mode:
+          type: string
+          const: fallback
+        status:
+          type: string
+          const: FALLBACK
+        evidence:
+          type: array
+          items:
+            $ref: '#/components/schemas/Evidence'
+          minItems: 0
+          maxItems: 0
+        reasonCode:
+          $ref: '#/components/schemas/FallbackReason'
+        notice:
+          type: string
+          const: 자동 분석 결과를 원문 근거로 검증하지 못했거나 분석을 완료하지 못했습니다. 메시지 속 링크를 누르거나 정보를 입력하지 말고, 주장하는 서비스의 공식 앱 또는 직접 입력한
+            주소에서 확인하세요.
+        limitation:
+          type: string
+          const: 이 결과만으로 피싱 또는 실제 침해 여부를 확정할 수 없습니다.
+        offsetUnit:
+          type: string
+          const: utf16
+    AnalyzeResponse:
+      oneOf:
+      - $ref: '#/components/schemas/VerifiedResponse'
+      - $ref: '#/components/schemas/NoActionResponse'
+      - $ref: '#/components/schemas/FallbackResponse'
+      discriminator:
+        propertyName: status
+        mapping:
+          VERIFIED: '#/components/schemas/VerifiedResponse'
+          NO_ACTION_FOUND: '#/components/schemas/NoActionResponse'
+          FALLBACK: '#/components/schemas/FallbackResponse'
+  responses:
+    NotFound:
+      description: 404 NOT_FOUND
+      headers:
+        Cache-Control: *id001
+        X-Request-ID: *id002
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    MethodNotAllowed:
+      description: 405 METHOD_NOT_ALLOWED; Allow 헤더를 추가한다.
+      headers:
+        Cache-Control: *id001
+        X-Request-ID: *id002
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
